@@ -16,6 +16,9 @@ import java.util.Map;
 
 import dto.BookingResponse;
 import dto.CreateBookingRequest;
+import dto.SearchBookingRequest;
+import dto.BookingSearchResult;
+import dto.MultiHourBookingRequest;
 
 import service.BookingService;
 
@@ -48,6 +51,12 @@ public class BookingController implements HttpHandler {
                 break;
             case "/api/v0/pool/timetable/cancel":
                 handleCancel(exchange);
+                break;
+            case "/api/v0/pool/timetable/search":
+                handleSearchBookings(exchange);
+                break;
+            case "/api/v0/pool/timetable/reserve/multi":
+                handleCreateMultiHourBooking(exchange);
                 break;
             default:
                 sendError(exchange, 404, "Not Found");
@@ -108,13 +117,52 @@ public class BookingController implements HttpHandler {
 
             sendJsonResponse(exchange, 201, toJson(response));
 
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             sendError(exchange, 400, e.getMessage());
+        } catch (IllegalStateException e) {
+            sendError(exchange, 409, e.getMessage()); // 409 Conflict
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendError(exchange, 500, "Internal server error");
+        }
+    }
+    
+    private void handleCreateMultiHourBooking(HttpExchange exchange) throws IOException {
+        String body = new String(
+                exchange.getRequestBody().readAllBytes(),
+                StandardCharsets.UTF_8
+        );
+
+        MultiHourBookingRequest req = parseMultiHourBookingRequest(body);
+
+        if (req == null) {
+            sendError(exchange, 400, "Invalid request body");
+            return;
+        }
+
+        try {
+            int bookingId = bookingService.createMultiHourBooking(
+                    req.getClientId(),
+                    req.getVisitDate(),
+                    req.getStartTime(),
+                    req.getHours()
+            );
+
+            BookingResponse response = BookingResponse.success(bookingId);
+            sendJsonResponse(exchange, 201, toJson(response));
+
+        } catch (IllegalArgumentException e) {
+            sendError(exchange, 400, e.getMessage());
+        } catch (IllegalStateException e) {
+            sendError(exchange, 409, e.getMessage()); // 409 Conflict
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendError(exchange, 500, "Internal server error");
         }
     }
     
     public void handleCancel(HttpExchange exchange) throws IOException {
-        if (!"GET".equals(exchange.getRequestMethod())) {
+        if (!"DELETE".equals(exchange.getRequestMethod())) {
             sendError(exchange, 405, "Method Not Allowed");
             return;
         }
@@ -161,6 +209,27 @@ public class BookingController implements HttpHandler {
                 int clientId = Integer.parseInt(clientIdStr);
                 LocalDateTime dateTime = LocalDateTime.parse(dateTimeStr);
                 return new CreateBookingRequest(clientId, dateTime);
+            }
+
+        } catch (Exception e) {
+            System.err.println("Parse error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    private MultiHourBookingRequest parseMultiHourBookingRequest(String jsonBody) {
+        try {
+            String clientIdStr = JsonUtil.extractValue(jsonBody, "clientId");
+            String dateStr = JsonUtil.extractValue(jsonBody, "date");
+            String timeStr = JsonUtil.extractValue(jsonBody, "startTime");
+            String hoursStr = JsonUtil.extractValue(jsonBody, "hours");
+
+            if (clientIdStr != null && dateStr != null && timeStr != null && hoursStr != null) {
+                int clientId = Integer.parseInt(clientIdStr);
+                LocalDate date = LocalDate.parse(dateStr);
+                LocalTime startTime = LocalTime.parse(timeStr);
+                int hours = Integer.parseInt(hoursStr);
+                return new MultiHourBookingRequest(clientId, date, startTime, hours);
             }
 
         } catch (Exception e) {
@@ -234,6 +303,71 @@ public class BookingController implements HttpHandler {
 
         sendJsonResponse(exchange, 200, toJson(available));
     }
+    
+    public void handleSearchBookings(HttpExchange exchange) throws IOException {
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendError(exchange, 405, "Method Not Allowed");
+            return;
+        }
 
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        SearchBookingRequest req = parseSearchBookingRequest(body);
+        
+        if (req == null) {
+            sendError(exchange, 400, "Invalid request body");
+            return;
+        }
 
+        try {
+            LocalDate visitDate = null;
+            if (req.getVisitDate() != null && !req.getVisitDate().trim().isEmpty()) {
+                visitDate = LocalDate.parse(req.getVisitDate());
+            }
+            
+            List<BookingSearchResult> results = bookingService.searchBookings(
+                req.getClientName(), 
+                visitDate
+            );
+            
+            sendJsonResponse(exchange, 200, toJson(results));
+            
+        } catch (IllegalArgumentException e) {
+            sendError(exchange, 400, e.getMessage());
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sendError(exchange, 500, "Internal server error");
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendError(exchange, 400, "Invalid request");
+        }
+    }
+    
+    private SearchBookingRequest parseSearchBookingRequest(String jsonBody) {
+        try {
+            String clientName = JsonUtil.extractValue(jsonBody, "clientName");
+            String visitDate = JsonUtil.extractValue(jsonBody, "visitDate");
+            
+            return new SearchBookingRequest(clientName, visitDate);
+        } catch (Exception e) {
+            System.err.println("Parse error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    private String toJson(List<BookingSearchResult> results) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < results.size(); i++) {
+            BookingSearchResult r = results.get(i);
+            sb.append("{\"orderId\":").append(r.getOrderId())
+              .append(",\"clientName\":\"").append(escapeJson(r.getClientName())).append("\"")
+              .append(",\"clientPhone\":\"").append(escapeJson(r.getClientPhone())).append("\"")
+              .append(",\"clientEmail\":\"").append(escapeJson(r.getClientEmail())).append("\"")
+              .append(",\"visitDate\":\"").append(r.getVisitDate()).append("\"")
+              .append(",\"visitTime\":\"").append(r.getVisitTime()).append("\"")
+              .append("}");
+            if (i < results.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
 }

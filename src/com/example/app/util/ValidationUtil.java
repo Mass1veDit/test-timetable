@@ -60,4 +60,17 @@ public class ValidationUtil {
             return false;
         }
     }
+    
+    public static boolean isValidHours(int hours) {
+        return hours > 0 && hours <= 12;
+    }
+    
+    public static boolean areConsecutiveHoursValid(LocalTime startTime, int hours) {
+        if (!isValidPoolTime(startTime)) {
+            return false;
+        }
+        
+        LocalTime endTime = startTime.plusHours(hours);
+        return !endTime.isAfter(LocalTime.of(22, 0));
+    }
 }

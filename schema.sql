@@ -18,26 +18,6 @@ SELECT day, '08:00:00'::TIME, '22:00:00'::TIME, 10
 FROM generate_series(1, 7) AS day
 ON CONFLICT (day_of_week) DO NOTHING;
 
--- Orders Table
-CREATE TABLE IF NOT EXISTS orders (
-    id SERIAL PRIMARY KEY,
-    client_id INTEGER NOT NULL,
-    visit_date DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (client_id) REFERENCES clients(id)
-);
-   
--- Order Slots Table
-CREATE TABLE IF NOT EXISTS order_slots (
-    id SERIAL PRIMARY KEY,
-    order_id INTEGER NOT NULL,
-    visit_date DATE NOT NULL,
-    visit_time TIME NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id),
-    UNIQUE(visit_date, visit_time) -- Prevent double booking of exact same time slot
-);
-
 -- Clients Table
 CREATE TABLE IF NOT EXISTS clients (
     id SERIAL PRIMARY KEY,
@@ -47,7 +27,39 @@ CREATE TABLE IF NOT EXISTS clients (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Orders Table
+CREATE TABLE IF NOT EXISTS orders (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    visit_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+-- Order Slots Table - Main table for bookings
+CREATE TABLE IF NOT EXISTS order_slots (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    visit_date DATE NOT NULL,
+    visit_time TIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Holidays Table
+CREATE TABLE IF NOT EXISTS holidays (
+    id SERIAL PRIMARY KEY,
+    holiday_date DATE NOT NULL UNIQUE,
+    time_start TIME,
+    time_end TIME,
+    capacity INTEGER DEFAULT 10,
+    is_closed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_order_slots_date_time ON order_slots(visit_date, visit_time);
 CREATE INDEX IF NOT EXISTS idx_orders_client_date ON orders(client_id, visit_date);
 CREATE INDEX IF NOT EXISTS idx_pool_schedules_day ON pool_schedules(day_of_week);
+CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(holiday_date);

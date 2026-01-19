@@ -7,7 +7,6 @@ public class ClientResponse {
         return id;
     }
 
-    // Статический метод для успешного ответа
     public static ClientResponse success(int id) {
         ClientResponse r = new ClientResponse();
         r.id = id;

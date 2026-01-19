@@ -7,6 +7,7 @@ import controller.BookingController;
 import repository.OrderRepositoryJdbc;
 import repository.OrderSlotRepositoryJdbc;
 import repository.PoolScheduleRepositoryJdbc;
+import repository.HolidayRepositoryJdbc;
 import service.BookingService;
 
 import java.net.InetSocketAddress;
@@ -31,8 +32,9 @@ public class App {
         OrderSlotRepositoryJdbc orderSlotRepo = new OrderSlotRepositoryJdbc(connection);
         PoolScheduleRepositoryJdbc poolScheduleRepo = new PoolScheduleRepositoryJdbc(connection);
         ClientRepositoryJdbc clientRepo = new ClientRepositoryJdbc(connection);
+        HolidayRepositoryJdbc holidayRepo = new HolidayRepositoryJdbc(connection);
 
-        BookingService bookingService = new BookingService(orderRepo, orderSlotRepo, poolScheduleRepo, clientRepo);
+        BookingService bookingService = new BookingService(orderRepo, orderSlotRepo, poolScheduleRepo, clientRepo, holidayRepo);
         BookingController bookingController = new BookingController(bookingService);
 
         // Получить всех клиентов
@@ -58,6 +60,12 @@ public class App {
 
         // уДаление брони
         server.createContext("/api/v0/pool/timetable/cancel", bookingController);
+        
+        // Поиск записей
+        server.createContext("/api/v0/pool/timetable/search", bookingController);
+        
+        // Многочасовое бронирование
+        server.createContext("/api/v0/pool/timetable/reserve/multi", bookingController);
 
         server.start();
 

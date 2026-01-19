@@ -32,7 +32,6 @@ public class ClientService {
 
     public Client updateClient(int id, String name, String phone, String email) throws SQLException {
         ClientValidator.validateClientId(id);
-
         ClientValidator.validateClientFieldsForUpdate(name, phone, email);
         
         Client client = repository.findById(id);

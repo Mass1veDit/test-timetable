@@ -15,7 +15,7 @@ public class PoolSchedule {
         this.dayOfWeek = dayOfWeek;
         this.timeStart = timeStart;
         this.timeEnd = timeEnd;
-        this.capacity = 10; // default capacity
+        this.capacity = 10;
     }
     
     public PoolSchedule(int id, int dayOfWeek, LocalTime timeStart, LocalTime timeEnd, int capacity) {

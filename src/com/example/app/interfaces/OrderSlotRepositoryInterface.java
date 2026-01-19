@@ -14,4 +14,8 @@ public interface OrderSlotRepositoryInterface {
     Map<LocalTime, Integer> countBusyByDate(LocalDate date);
 
     List<LocalTime> findBusyTimesByDate(LocalDate date);
+    
+    boolean areConsecutiveSlotsAvailable(LocalDate date, LocalTime startTime, int hours);
+    
+    void saveMultipleSlots(int orderId, LocalDate date, LocalTime startTime, int hours);
 }

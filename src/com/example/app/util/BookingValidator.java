@@ -50,7 +50,6 @@ public class BookingValidator {
                 throw new IllegalArgumentException("Time is outside of working hours");
             }
         } else {
-            // Fallback to default validation if no schedule repository is provided
             if (!ValidationUtil.isValidPoolTime(time)) {
                 throw new IllegalArgumentException("Invalid time: pool works from 08:00 to 22:00 and only full-hour slots allowed");
             }
